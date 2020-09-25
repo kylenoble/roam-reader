@@ -21,6 +21,43 @@ const client = new Instapaper(
 
 var turndownService = new TurndownService();
 
+const handleInstaBookmarks = async (bookmarks: any, tag: string) => {
+  const pages: any = [];
+  for (const bookmark of bookmarks) {
+    try {
+      var utcSeconds = bookmark.time;
+      var d = new Date(0); // The 0 there is the key, which sets the date to the epoch
+      d.setUTCSeconds(utcSeconds);
+
+      const bookMarkText = await client.getText(bookmark.bookmark_id);
+      var markdown = turndownService
+        .turndown(bookMarkText)
+        .split("\n")
+        .filter((doc: string) => doc !== "")
+        .map((line: string) => ({
+          string: line,
+        }));
+      pages.push({
+        title: `${bookmark.title}`,
+        children: [
+          { string: `url:: ${bookmark.url}` },
+          { string: `date:: ${d}` },
+          { string: "read:: {{[[TODO]]}}" },
+          { string: "tags:: ", children: [{ string: `#to-read #${tag}` }] },
+          { string: "notes:: ", children: [{ string: "" }] },
+          { string: "text::", children: markdown },
+        ],
+      });
+      await client.archiveBookmark(bookmark.bookmark_id);
+    } catch (err) {
+      console.log("err getting text");
+      console.log(err);
+    }
+  }
+
+  return pages;
+};
+
 const getInstapaper = async () => {
   await client.login(
     process.env.INSTAPAPER_EMAIL,
@@ -28,31 +65,12 @@ const getInstapaper = async () => {
   );
   const bookMarks: any = await client.listBookmarks("unread");
 
-  try {
-    const bookMarkText = await client.getText(bookMarks[3].bookmark_id);
-    var markdown = turndownService
-      .turndown(bookMarkText)
-      .split("\n")
-      .filter((doc: string) => doc !== "")
-      .map((line: string) => ({
-        string: line,
-      }));
-    console.log(bookMarks[3]);
-    createPage(bookMarks[3], markdown, "instapaper");
-  } catch (err) {
-    console.log("err getting text");
-    console.log(err);
-  }
+  const instaBookmarks = await handleInstaBookmarks(
+    bookMarks.filter((b: any) => b.bookmark_id > 0),
+    "instapaper"
+  );
+  createPage(instaBookmarks);
 };
-
-//// Build Import Array ////
-// Open File
-
-// Get array of pages
-
-// append to array of pages
-
-// save file
 
 const getFeedbin = async () => {
   const feedbin = new Feedbin(
@@ -65,27 +83,8 @@ const getFeedbin = async () => {
   console.log(feedbins);
 };
 
-// Parse Text
-
-const createPage = async (article: any, text: any, tag: string) => {
-  var utcSeconds = article.time;
-  var d = new Date(0); // The 0 there is the key, which sets the date to the epoch
-  d.setUTCSeconds(utcSeconds);
-
-  // console.log(text);
-  // api.import([
-  //   {
-  //     title: `${article.title}`,
-  //     children: [
-  //       { string: `url:: ${article.url}` },
-  //       { string: `date:: ${d}` },
-  //       { string: "read:: {{[[TODO]]}}" },
-  //       { string: "tags:: ", children: [{ string: `#to-read #${tag}`  }] },
-  //       { string: "notes:: ", children: [{ string: "" }] },
-  //       { string: "text::", children: text },
-  //     ],
-  //   },
-  // ]);
+const createPage = async (bookmarks: any) => {
+  api.import(bookmarks);
 };
 
 getInstapaper();
