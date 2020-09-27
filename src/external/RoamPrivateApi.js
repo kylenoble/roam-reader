@@ -40,7 +40,7 @@ class RoamPrivateApi {
       await this.page.waitForNavigation();
       await this.page.waitForSelector("input[name=email]");
     } catch (e) {
-      console.error("Cannot load the login screen!");
+      console.log("Cannot load the login screen!");
       throw e;
     }
     // Login
@@ -56,8 +56,11 @@ class RoamPrivateApi {
       this.options.folder + "roam-research-private-api-sync.json";
     fs.writeFileSync(fileName, JSON.stringify(items));
     await this.logIn();
+    await this.page.waitFor(1000);
     await this.page.waitForSelector(".bp3-icon-more");
+    await this.page.waitFor(1000);
     await this.clickMenuItem("Import Files");
+    await this.page.waitFor(1000);
 
     await this.page.waitForSelector("input[type=file]");
     await this.page.waitFor(1000);
@@ -67,8 +70,16 @@ class RoamPrivateApi {
     // Sets the value of the file input to fileToUpload
     inputUploadHandle.uploadFile(fileName);
     await this.page.waitForSelector(".bp3-dialog .bp3-intent-primary");
-    await this.page.click(".bp3-dialog .bp3-intent-primary");
-    await this.page.waitFor(3000);
+    await this.page.click(".bp3-dialog .bp3-intent-primary", {
+      timeout: 0,
+    });
+    await this.page.waitFor(10000);
+    await this.page.waitForSelector(".rm-saving-icon .rm-saving-remote", {
+      timeout: 0,
+    });
+    await this.page.waitForSelector(".rm-saving-icon .rm-synced", {
+      timeout: 0,
+    });
     return;
   }
 
@@ -78,7 +89,7 @@ class RoamPrivateApi {
     await this.page.waitForSelector(".bp3-menu li a");
 
     const items = [...(await this.page.$$(".bp3-menu li a"))];
-    console.log(items);
+
     items.forEach((item, i) => {
       if (i === 4) {
         item.click();
@@ -89,7 +100,9 @@ class RoamPrivateApi {
 
   async close() {
     if (this.browser) {
-      await this.page.waitFor(1000);
+      await this.page.waitFor(60000);
+      // rm-saving-inner-icon
+      // 'rm-saving-remote'
       await this.browser.close();
       this.browser = null;
     }
